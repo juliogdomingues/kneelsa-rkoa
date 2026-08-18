@@ -1,48 +1,62 @@
-# Kneelsa-Clinical: KOA Screening Tool (Streamlit App)
+# KNEELSA: estimated probability of prevalent radiographic knee osteoarthritis
 
-This repository contains the source code for the **Kneelsa-Clinical** web application, a screening tool for Knee Osteoarthritis (KOA) developed as part of the ELSA-Brasil MSK study.
+Source for the web application implementing the seven-variable Constitutional
+logistic model developed in the ELSA-Brasil Musculoskeletal Study.
 
-## About
+**Live app:** https://kneelsa-clinical.streamlit.app/
 
-This app implements the **5-variable clinical prediction model** described in our research. It provides per-knee probability estimates of radiographic osteoarthritis.
+## What it does, and what it does not
 
-**Live Demo:** [https://kneelsa-clinical.streamlit.app/](https://kneelsa-clinical.streamlit.app/)
+For a knee assessed now, the app estimates the probability that radiographic knee
+osteoarthritis is **already present** — Kellgren–Lawrence grade 2 or higher in
+the tibiofemoral or the patellofemoral joint.
 
-## Model Details
+It does **not** estimate the chance of developing osteoarthritis later. The study
+behind it is cross-sectional, so the model describes present structural status
+only. It is a diagnostic prediction model in the TRIPOD sense, not a prognostic
+one.
 
-- **Type:** Logistic Regression
-- **Patient-level Variables (shared between knees):**
-  1. Age (years)
-  2. BMI ($kg/m^2$)
-- **Knee-specific Variables:** 3. Frequent Knee Pain (Yes/No) 4. History of Knee Surgery (Yes/No) 5. History of Knee Trauma (Yes/No)
-- **Output:** Probability of Radiographic KOA (KL $\ge$ 2) **per knee**
+## Research use only
 
-## Features
+- Developed and validated **internally only**, in a single cohort of Brazilian
+  civil servants aged 38–79. Never tested in another population; performance
+  elsewhere is unknown.
+- Radiographic osteoarthritis and symptoms are frequently discordant. A high
+  estimated probability does not mean the knee is painful and does not by itself
+  indicate any treatment.
+- No threshold has been established at which a knee radiograph should be
+  obtained, so the app defines no decision rule and reports no cut-off.
+- Not a substitute for clinical assessment or professional medical advice.
 
-- Assess one knee at a time or both knees simultaneously
-- Patient demographics (age, BMI) are shared across knees
-- Clinical features can vary between left and right knees
-- Direct probability output without screening thresholds
-- Suitable for risk stratification and clinical decision-making
+## The model
 
-## How to Run Locally
+Logistic regression on seven variables.
 
-1. Clone this repository.
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the app:
-   ```bash
-   streamlit run app.py
-   ```
+Person-level: age, body mass index, waist–hip ratio, occupational nature
+(non-routine non-manual versus other), race and skin colour (self-reported White
+versus other).
 
-## Citation
+Knee-level: history of knee surgery, history of knee trauma.
 
-If you use this tool, please cite our work:
+Parameters live in `final_model.csv`, which carries, per variable, the imputation
+median, the standardisation mean and scale, and the coefficient on the
+standardised scale. The prediction is
 
-> Domingues JG, Veloso AA, Telles RW, Barreto SM. "A clinical-epidemiological tool for identifying prevalent radiographic knee osteoarthritis: data from ELSA-Brasil MSK" (2026).
+    z      = (x - scaler_mean) / scaler_scale
+    logit  = intercept + Σ coef_on_scaled × z
+    p      = 1 / (1 + exp(−logit))
 
-## License
+`final_model.csv` is generated from the fitted model by
+`scripts/17_export_calculator_model.py` in the analysis repository, so the app
+and the paper cannot drift apart. Do not edit it by hand.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Provenance
+
+Analysis code and results: https://github.com/juliogdomingues/clinical-rKOAprev
+
+## Running locally
+
+```
+pip install -r requirements.txt
+streamlit run app.py
+```

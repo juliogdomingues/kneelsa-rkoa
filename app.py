@@ -6,15 +6,15 @@ from pathlib import Path
 # ==========================================
 # CONFIGURAÇÃO DO MODELO (carregado de CSV)
 # ==========================================
-SINGLE_CSV = Path("final_5var_model.csv")
+SINGLE_CSV = Path("final_model.csv")
 FIGURE_1_PATH = Path("fig1.png")
 
 
 @st.cache_data
 def load_model_params():
     """
-    Loads the 5-variable model parameters from a single CSV:
-    results_final_analysis/final_5var_model.csv
+    Loads the 7-variable Constitutional model parameters from a single CSV:
+    results_final_analysis/final_model.csv
     """
     if not SINGLE_CSV.exists():
         raise FileNotFoundError(
@@ -42,16 +42,21 @@ INTERCEPT, MODEL_FEATURES = load_model_params()
 # ==========================================
 st.set_page_config(page_title="Kneelsa-Clinical", page_icon="🦵")
 
-st.title("Kneelsa-Clinical: KOA Screening Tool")
+st.title("KNEELSA: estimated probability of prevalent radiographic knee osteoarthritis")
 st.markdown("""
-This tool implements the **5-variable clinical screening model** developed in the ELSA-Brasil MSK study.
-It estimates the probability of prevalent radiographic Knee Osteoarthritis (KL >= 2) **per knee**.
+This tool implements the seven-variable Constitutional logistic model developed in the
+ELSA-Brasil Musculoskeletal Study. For a knee assessed **now**, it estimates the probability that
+radiographic knee osteoarthritis is **already present** (Kellgren-Lawrence grade 2 or higher in the
+tibiofemoral or patellofemoral joint).
+
+It does not estimate the chance of developing osteoarthritis in the future: the study behind it is
+cross-sectional, so the model describes present structural status only.
 """)
 
 st.markdown("---")
 
 # Patient Demographics (same for both knees)
-st.subheader("Patient Demographics")
+st.subheader("Patient characteristics")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -59,6 +64,25 @@ with col1:
 
 with col2:
     bmi = st.number_input("BMI (kg/m²)", min_value=15.0, max_value=60.0, value=25.0, format="%.1f", step=1.0)
+
+col3, col4 = st.columns(2)
+with col3:
+    whr = st.number_input(
+        "Waist-hip ratio", min_value=0.50, max_value=1.60, value=0.91, format="%.2f", step=0.01,
+        help="Waist circumference divided by hip circumference.",
+    )
+with col4:
+    occupation = st.selectbox(
+        "Occupational nature",
+        ["Non-routine non-manual", "Routine non-manual", "Routine manual", "Non-routine manual"],
+        help="Classified by the tasks performed, as recorded in ELSA-Brasil.",
+    )
+
+race = st.selectbox(
+    "Race and skin colour (self-reported)",
+    ["White", "Brown/Mixed", "Black", "Asian", "Indigenous"],
+    help="Self-reported using the Brazilian census (IBGE) categories.",
+)
 
 st.markdown("---")
 
@@ -150,7 +174,6 @@ def get_knees_to_assess(selection: str) -> list[str]:
 
 knees_to_assess = get_knees_to_assess(knee_selection)
 
-SYMPTOMS_LABEL = "Frequent Symptoms?"
 SURGERY_LABEL = "History of Surgery?"
 TRAUMA_LABEL = "History of Trauma/Injury?"
 
@@ -158,12 +181,6 @@ TRAUMA_LABEL = "History of Trauma/Injury?"
 if len(knees_to_assess) == 1:
     knee = knees_to_assess[0]
     st.markdown(knee_badge_html(knee).strip(), unsafe_allow_html=True)
-
-    st.checkbox(
-        SYMPTOMS_LABEL,
-        key=f"symptoms_{knee}",
-        help="Pain, discomfort, or stiffness that lasted for most days for at least one month in the last 12 months",
-    )
     st.checkbox(
         SURGERY_LABEL,
         key=f"surgery_{knee}",
@@ -190,11 +207,6 @@ else:
             unsafe_allow_html=True
         )
         st.checkbox(
-            SYMPTOMS_LABEL,
-            key="symptoms_Right",
-            help="Pain, discomfort, or stiffness that lasted for most days for at least one month in the last 12 months"
-        )
-        st.checkbox(
             SURGERY_LABEL,
             key="surgery_Right",
             help="Ever undergone any type of surgery, including arthroscopy, meniscal or ligament repair?"
@@ -214,11 +226,6 @@ else:
             unsafe_allow_html=True
         )
         st.checkbox(
-            SYMPTOMS_LABEL,
-            key="symptoms_Left",
-            help="Pain, discomfort, or stiffness that lasted for most days for at least one month in the last 12 months"
-        )
-        st.checkbox(
             SURGERY_LABEL,
             key="surgery_Left",
             help="Ever undergone any type of surgery, including arthroscopy, meniscal or ligament repair?"
@@ -235,14 +242,16 @@ st.markdown("---")
 # ==========================================
 # CÁLCULO
 # ==========================================
-def calculate_probability(age, bmi, symptoms, surgery, trauma):
+def calculate_probability(age, bmi, whr, occupation, race, surgery, trauma):
     """Calculate the probability of KOA for a single knee using the saved preprocessing + LR params."""
     x = {
         "age": float(age),
         "bmi": float(bmi),
+        "waist_hip_ratio": float(whr),
         "history_surgery": 1.0 if surgery else 0.0,
-        "frequent_symptoms": 1.0 if symptoms else 0.0,
         "history_trauma": 1.0 if trauma else 0.0,
+        "occupation_4": 1.0 if occupation == "Non-routine non-manual" else 0.0,
+        "race_raw_3": 1.0 if race == "White" else 0.0,
     }
 
     logit = float(INTERCEPT)
@@ -270,14 +279,15 @@ if st.button("Calculate Probability", type="primary"):
         st.error("No knees selected. Please select at least one knee.")
     else:
         def render_knee_result(container, knee: str, *, show_badge: bool) -> None:
-            knee_symptoms = st.session_state.get(f"symptoms_{knee}", False)
             knee_surgery = st.session_state.get(f"surgery_{knee}", False)
             knee_trauma = st.session_state.get(f"trauma_{knee}", False)
 
             prob = calculate_probability(
                 age=age,
                 bmi=bmi,
-                symptoms=knee_symptoms,
+                whr=whr,
+                occupation=occupation,
+                race=race,
                 surgery=knee_surgery,
                 trauma=knee_trauma,
             )
@@ -299,7 +309,6 @@ if st.button("Calculate Probability", type="primary"):
                 )
                 st.write(
                     f"**Input data:** Age {age}y | BMI {bmi:.1f} | "
-                    f"Symptoms: {'Yes' if knee_symptoms else 'No'} | "
                     f"Surgery: {'Yes' if knee_surgery else 'No'} | "
                     f"Trauma: {'Yes' if knee_trauma else 'No'}"
                 )
@@ -321,7 +330,21 @@ if st.button("Calculate Probability", type="primary"):
             render_knee_result(st.container(), knees_to_display[0], show_badge=True)
         
 st.markdown("---")
-st.caption("Disclaimer: This tool is for research and educational purposes only. It does not replace professional medical advice.")
+st.warning(
+    """**Research use only. Not for clinical decision-making.**
+
+- The model was developed and validated **internally only**, in a single cohort of Brazilian civil
+  servants aged 38-79. It has never been tested in another population, and its performance elsewhere
+  is unknown.
+- It estimates whether radiographic osteoarthritis is **present now**. It says nothing about whether
+  osteoarthritis will develop, nor about progression.
+- Radiographic osteoarthritis and symptoms are frequently discordant. A high estimated probability
+  does not mean a knee is painful, and does not by itself indicate any treatment.
+- No threshold has been established at which a knee radiograph should be obtained, so this tool
+  defines no decision rule.
+- It does not replace clinical assessment or professional medical advice.
+"""
+)
 
 st.markdown("---")
 st.subheader("OARSI 2026 Late-Breaking Abstract")

@@ -2,7 +2,7 @@
 
 Source for the web application implementing the two logistic models developed in the ELSA-Brasil Musculoskeletal Study.
 
-**Live app:** https://kneelsa-clinical.streamlit.app/
+**Live app:** [ADD URL once deployed]
 
 ## What it does, and what it does not
 

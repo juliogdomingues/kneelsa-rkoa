@@ -10,7 +10,6 @@ MODEL_FILES = {
     "Constitutional": Path("final_model.csv"),
     "Symptom-Augmented": Path("symptom_augmented_model.csv"),
 }
-FIGURE_1_PATH = Path("fig1.png")
 
 # Knee-level variables that only the Symptom-Augmented model uses.
 SYMPTOM_FEATURES = ["frequent_symptoms", "knee_disability", "recent_pain_7d"]
@@ -393,120 +392,6 @@ st.warning(
 - It does not replace clinical assessment or professional medical advice.
 """
 )
-
-st.markdown("---")
-st.subheader("OARSI 2026 Late-Breaking Abstract")
-
-st.markdown("""
-**Title:**
-A CLINICAL-EPIDEMIOLOGICAL TOOL FOR IDENTIFYING PREVALENT RADIOGRAPHIC KNEE OSTEOARTHRITIS: DATA FROM ELSA-BRASIL MSK
-
-**Authors:** Domingues JG, Veloso AA, Telles RW, Barreto SM.
-
-**Category:** Epidemiology, Clinical Aspects & Outcomes
-""")
-
-with st.expander("Purpose", expanded=False):
-    st.write(
-        "In certain settings, evaluation of patients' knee symptoms by clinical parameters may be preferable to or "
-        "more feasible than obtaining radiographs to diagnose knee OA (KOA) or estimate its prevalence in "
-        "epidemiologic studies. We aimed to develop a parsimonious clinical-epidemiological tool to estimate the "
-        "probability of prevalent radiographic KOA (rKOA) using routinely obtainable variables in a large "
-        "population-based cohort."
-    )
-
-with st.expander("Methods", expanded=False):
-    st.write(
-        "We used data from the ELSA-Brasil Musculoskeletal Study (2012-2014), a cohort of civil servants, ages "
-        "38-74 unselected for any medical conditions. All participants underwent bilateral fixed-flexion PA and "
-        "lateral knee radiography. The outcome was prevalent rKOA, defined as Kellgren-Lawrence grade >= 2 in the "
-        "tibiofemoral compartment and/or definite patellofemoral OA."
-    )
-    st.write(
-        "We evaluated candidate variables spanning demographic, anthropometric, clinical, mechanical, metabolic, "
-        "and lifestyle domains. Variable selection followed a staged, interpretability-oriented strategy in "
-        "knee-level analyses with participant-level clustering."
-    )
-    st.write(
-        "We first used L1-penalized logistic regression (LASSO) to rank variables by importance. We then identified "
-        "the optimal number of variables by maximizing the AUC with a penalty for model complexity (0.1% per "
-        "variable). From among this reduced set of variables, we performed a forward stepwise procedure until the "
-        "subsequent addition of the next variable did not increase the AUC gain by a further 0.5% to identify a "
-        "final parsimonious model. We also evaluated tree-based algorithms (Random Forest and XGBoost)."
-    )
-    st.write(
-        "Internal validation was undertaken using 5-fold cross-validation with participant-level grouping to account "
-        "for bilateral dependency. Discrimination was quantified by the area under the ROC curve (AUC), with "
-        "confidence intervals derived from bootstrapping pooled predictions. Calibration was additionally assessed "
-        "using the Brier score."
-    )
-
-with st.expander("Results", expanded=False):
-    st.write(
-        "Of the 2830 participants (mean age 56, 52% female, 18% KOA), there were 5,652 knee radiographs available "
-        "for analysis (8 excluded due to arthroplasty or technical artifacts). From the initial 55 variables, 42 were "
-        "selected by the LASSO model. Subsequently, the complexity-penalized selection followed by the forward "
-        "selection process identified a 5-variable model as both parsimonious and optimal in terms of performance "
-        "with good discrimination (pooled AUC 0.815; 95% CI 0.799-0.829) and calibration (Brier score 0.093) "
-        "(Figure 1A); adding more variables did not increase AUC by >= 0.5% (Figure 1B). This final model included "
-        "age, body mass index (BMI), frequent knee symptoms, history of knee surgery, and history of knee trauma. "
-        "Complex machine learning approaches did not improve performance, as Random Forest (AUC 0.796) and XGBoost "
-        "(AUC 0.776) did not outperform the simple logistic model in this dataset."
-    )
-    st.write(
-        "All selected variables were independently associated with rKOA (p < 0.0001). History of knee surgery had "
-        "the strongest association (OR 7.11; 95% CI 4.83-10.43), followed by frequent symptoms (OR 2.46; 95% CI "
-        "1.98-3.04) and past trauma (OR 2.08; 95% CI 1.64-2.64). In terms of contribution to discriminative power, "
-        "Age (standardized OR (sOR) 2.20; 95% CI 1.97-2.46) and BMI (sOR 1.79; 95% CI 1.63-1.97) were the strongest "
-        "drivers of AUC (Figure 1B)."
-    )
-
-with st.expander("Conclusions", expanded=False):
-    st.write(
-        "A simple clinical-epidemiological tool using 5 routinely available variables effectively identifies knees "
-        "with a high probability of prevalent rKOA and outperformed more complex (including machine learning) "
-        "models. Of note, sex was not retained in the final model, likely reflecting its effects being captured "
-        "within the clinical parameters. This tool may support efficient triage and prioritization of imaging in "
-        "epidemiological studies and healthcare settings with limited access to radiography."
-    )
-
-st.markdown("**Figures and Tables**")
-
-table_df = pd.DataFrame(
-    {
-        "Characteristic": [
-            "Age (years) (Mean +/- SD)",
-            "Sex (Female) (%)",
-            "BMI (kg/m^2) (Mean +/- SD)",
-            "Frequent Knee Symptoms (%)",
-            "History of Knee Trauma (%)",
-            "History of Knee Surgery (%)",
-        ],
-        "Total (N=2830)": ["56 +/- 9", "53", "27 +/- 5", "23", "24", "7"],
-        "No rKOA (N=2318)": ["55 +/- 9", "52", "27 +/- 5", "19", "20", "3"],
-        "With rKOA (N=512)": ["61 +/- 8", "55", "29 +/- 5", "45", "43", "22"],
-        "P-value": ["<0.001", "0.4", "<0.001", "<0.001", "<0.001", "<0.001"],
-    }
-)
-
-st.caption("Table 1: Demographic and clinical characteristics of participants by rKOA status")
-st.dataframe(table_df, use_container_width=True, hide_index=True)
-st.caption("Note: P-values derived from independent t-tests (continuous) and Chi-square tests (categorical).")
-
-if FIGURE_1_PATH.exists():
-    st.image(
-        str(FIGURE_1_PATH),
-        caption=(
-            "Figure 1: (A) Discriminative performance of the models (B) Incremental gain in AUC for selected "
-            "variables. Filled circles: variables included in the final model. Open circles: variables not included."
-        ),
-        use_container_width=True,
-    )
-else:
-    st.caption(
-        "Figure 1: (A) Discriminative performance of the models (B) Incremental gain in AUC for selected "
-        "variables. Filled circles: variables included in the final model. Open circles: variables not included."
-    )
 
 st.markdown("---")
 st.markdown(

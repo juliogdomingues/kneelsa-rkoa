@@ -6,36 +6,33 @@ from pathlib import Path
 # ==========================================
 # CONFIGURAÇÃO DO MODELO (carregado de CSV)
 # ==========================================
-SINGLE_CSV = Path("final_model.csv")
+MODEL_FILES = {
+    "Constitutional": Path("final_model.csv"),
+    "Symptom-Augmented": Path("symptom_augmented_model.csv"),
+}
 FIGURE_1_PATH = Path("fig1.png")
+
+# Knee-level variables that only the Symptom-Augmented model uses.
+SYMPTOM_FEATURES = ["frequent_symptoms", "knee_disability", "recent_pain_7d"]
 
 
 @st.cache_data
-def load_model_params():
-    """
-    Loads the 7-variable Constitutional model parameters from a single CSV:
-    results_final_analysis/final_model.csv
-    """
-    if not SINGLE_CSV.exists():
-        raise FileNotFoundError(
-            "Model CSV not found. Please run complete.py to generate:\n"
-            f"- {SINGLE_CSV}"
-        )
+def load_model_params(path_str: str):
+    """Load one model specification: intercept plus per-variable parameters."""
+    path = Path(path_str)
+    if not path.exists():
+        raise FileNotFoundError(f"Model CSV not found: {path}")
 
-    df = pd.read_csv(SINGLE_CSV)
-
-    intercept_row = df.loc[df["feature"] == "__INTERCEPT__"].iloc[0]
-    intercept = float(intercept_row["intercept"])
-
+    df = pd.read_csv(path)
+    intercept = float(df.loc[df["feature"] == "__INTERCEPT__", "intercept"].iloc[0])
     features_df = df.loc[
         df["param_type"] == "feature",
         ["feature", "imputer_median", "scaler_mean", "scaler_scale", "coef_on_scaled"],
     ].copy()
-
     return intercept, features_df
 
 
-INTERCEPT, MODEL_FEATURES = load_model_params()
+MODELS = {name: load_model_params(str(p)) for name, p in MODEL_FILES.items()}
 
 # ==========================================
 # INTERFACE DO USUÁRIO
@@ -56,6 +53,27 @@ cross-sectional, so the model describes present structural status only.
 st.markdown("---")
 
 # Patient Demographics (same for both knees)
+model_name = st.radio(
+    "Model",
+    list(MODEL_FILES),
+    horizontal=True,
+    help=(
+        "Constitutional uses seven characteristics that do not depend on current symptoms. "
+        "Symptom-Augmented adds three self-reported knee symptom items, and so answers a "
+        "different question: how well structural disease is identified once the clinical "
+        "presentation is already known."
+    ),
+)
+if model_name == "Symptom-Augmented":
+    st.caption(
+        "The Symptom-Augmented model requires symptom information for each knee. Its "
+        "discrimination was 0.820 against 0.809 for the Constitutional model."
+    )
+INTERCEPT, MODEL_FEATURES = MODELS[model_name]
+USES_SYMPTOMS = model_name == "Symptom-Augmented"
+
+st.markdown("---")
+
 st.subheader("Patient characteristics")
 col1, col2 = st.columns(2)
 
@@ -174,6 +192,26 @@ def get_knees_to_assess(selection: str) -> list[str]:
 
 knees_to_assess = get_knees_to_assess(knee_selection)
 
+SYMPTOM_LABELS = {
+    "frequent_symptoms": ("Frequent knee symptoms?",
+                          "Pain, discomfort or stiffness on most days for at least one month "
+                          "in the last 12 months"),
+    "recent_pain_7d": ("Knee symptoms in the last 7 days?",
+                       "Pain, discomfort or stiffness in this knee in the last 7 days"),
+    "knee_disability": ("Activity limitation from this knee?",
+                        "Knee pain, discomfort or stiffness that prevented normal activities "
+                        "in the last 12 months"),
+}
+
+
+def symptom_checkboxes(knee: str) -> None:
+    """Render the three symptom items for one knee, Symptom-Augmented model only."""
+    if not USES_SYMPTOMS:
+        return
+    for key, (label, help_text) in SYMPTOM_LABELS.items():
+        st.checkbox(label, key=f"{key}_{knee}", help=help_text)
+
+
 SURGERY_LABEL = "History of Surgery?"
 TRAUMA_LABEL = "History of Trauma/Injury?"
 
@@ -191,6 +229,7 @@ if len(knees_to_assess) == 1:
         key=f"trauma_{knee}",
         help="Ever injured or suffered trauma that caused difficulty walking for at least one week?",
     )
+    symptom_checkboxes(knee)
 else:
     # Radiographic convention: RIGHT knee on the LEFT side of the screen
     st.markdown(radiographic_view_html(), unsafe_allow_html=True)
@@ -216,6 +255,7 @@ else:
             key="trauma_Right",
             help="Ever injured or suffered trauma that caused difficulty walking for at least one week?"
         )
+        symptom_checkboxes("Right")
     
     with col_left:
         st.markdown(
@@ -235,6 +275,7 @@ else:
             key="trauma_Left",
             help="Ever injured or suffered trauma that caused difficulty walking for at least one week?"
         )
+        symptom_checkboxes("Left")
 
 
 st.markdown("---")
@@ -242,7 +283,8 @@ st.markdown("---")
 # ==========================================
 # CÁLCULO
 # ==========================================
-def calculate_probability(age, bmi, whr, occupation, race, surgery, trauma):
+def calculate_probability(age, bmi, whr, occupation, race, surgery, trauma,
+                          frequent_symptoms=False, knee_disability=False, recent_pain=False):
     """Calculate the probability of KOA for a single knee using the saved preprocessing + LR params."""
     x = {
         "age": float(age),
@@ -252,6 +294,9 @@ def calculate_probability(age, bmi, whr, occupation, race, surgery, trauma):
         "history_trauma": 1.0 if trauma else 0.0,
         "occupation_4": 1.0 if occupation == "Non-routine non-manual" else 0.0,
         "race_raw_3": 1.0 if race == "White" else 0.0,
+        "frequent_symptoms": 1.0 if frequent_symptoms else 0.0,
+        "knee_disability": 1.0 if knee_disability else 0.0,
+        "recent_pain_7d": 1.0 if recent_pain else 0.0,
     }
 
     logit = float(INTERCEPT)
@@ -290,6 +335,9 @@ if st.button("Calculate Probability", type="primary"):
                 race=race,
                 surgery=knee_surgery,
                 trauma=knee_trauma,
+                frequent_symptoms=st.session_state.get(f"frequent_symptoms_{knee}", False),
+                knee_disability=st.session_state.get(f"knee_disability_{knee}", False),
+                recent_pain=st.session_state.get(f"recent_pain_7d_{knee}", False),
             )
 
             with container:

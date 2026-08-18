@@ -1,7 +1,6 @@
 # KNEELSA: estimated probability of prevalent radiographic knee osteoarthritis
 
-Source for the web application implementing the seven-variable Constitutional
-logistic model developed in the ELSA-Brasil Musculoskeletal Study.
+Source for the web application implementing the two logistic models developed in the ELSA-Brasil Musculoskeletal Study.
 
 **Live app:** https://kneelsa-clinical.streamlit.app/
 
@@ -28,17 +27,24 @@ one.
   obtained, so the app defines no decision rule and reports no cut-off.
 - Not a substitute for clinical assessment or professional medical advice.
 
-## The model
+## The two models
 
-Logistic regression on seven variables.
+**Constitutional** (default, seven variables) uses characteristics that do not
+depend on current symptom status. This is the primary model of the paper and the
+one to use when symptoms are unknown.
 
-Person-level: age, body mass index, waist–hip ratio, occupational nature
-(non-routine non-manual versus other), race and skin colour (self-reported White
-versus other).
+- Person-level: age, body mass index, waist-hip ratio, occupational nature
+  (non-routine non-manual versus other), race and skin colour (self-reported
+  White versus other)
+- Knee-level: history of knee surgery, history of knee trauma
 
-Knee-level: history of knee surgery, history of knee trauma.
+**Symptom-Augmented** (ten variables) adds three self-reported symptom items,
+recorded per knee: frequent knee symptoms, symptoms in the last seven days, and
+knee-related activity limitation. It answers a different question, namely how
+well structural disease is identified once the clinical presentation is already
+known. Discrimination was 0.820 against 0.809 for the Constitutional model.
 
-Parameters live in `final_model.csv`, which carries, per variable, the imputation
+Parameters live in `final_model.csv` and `symptom_augmented_model.csv`, which carry, per variable, the imputation
 median, the standardisation mean and scale, and the coefficient on the
 standardised scale. The prediction is
 
@@ -46,8 +52,8 @@ standardised scale. The prediction is
     logit  = intercept + Σ coef_on_scaled × z
     p      = 1 / (1 + exp(−logit))
 
-`final_model.csv` is generated from the fitted model by
-`scripts/17_export_calculator_model.py` in the analysis repository, so the app
+Both are generated from the fitted models by `scripts/17_export_calculator_model.py`
+and `scripts/18_symptom_augmented_model.py` in the analysis repository, so the app
 and the paper cannot drift apart. Do not edit it by hand.
 
 ## Provenance

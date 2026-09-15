@@ -29,23 +29,25 @@ one.
 
 ## The two models
 
-**Constitutional** (default, seven variables) uses characteristics that do not
+**Constitutional** (default, eight variables) uses characteristics that do not
 depend on current symptom status. This is the primary model of the paper and the
 one to use when symptoms are unknown.
 
 - Person-level: age, body mass index, waist-hip ratio, occupational nature
-  (non-routine non-manual versus other), race and skin colour (self-reported
-  White versus other)
+  (non-routine non-manual versus other), race and skin color (self-reported
+  White versus other), and squatting for 30 minutes or more in a single day in
+  the last 30 days
 - Knee-level: history of knee surgery, history of knee trauma
 
-**Symptom-Augmented** (ten variables) adds three self-reported symptom items,
-recorded per knee: frequent knee symptoms, symptoms in the last seven days, and
+**Symptom-Augmented** (ten variables) was selected with three self-reported
+symptom items also available. It keeps seven of the Constitutional variables (all
+but squatting) and adds the three items, recorded per knee: frequent knee symptoms, symptoms in the last seven days, and
 knee-related activity limitation. It answers a different question, namely how
 well structural disease is identified once the clinical presentation is already
-known. Discrimination was 0.820 against 0.809 for the Constitutional model.
+known. Discrimination was 0.821 against 0.811 for the Constitutional model.
 
 Parameters live in `final_model.csv` and `symptom_augmented_model.csv`, which carry, per variable, the imputation
-median, the standardisation mean and scale, and the coefficient on the
+median, the standardization mean and scale, and the coefficient on the
 standardised scale. The prediction is
 
     z      = (x - scaler_mean) / scaler_scale

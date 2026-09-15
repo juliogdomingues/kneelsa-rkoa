@@ -40,7 +40,7 @@ st.set_page_config(page_title="Kneelsa-Clinical", page_icon="🦵")
 
 st.title("KNEELSA: estimated probability of prevalent radiographic knee osteoarthritis")
 st.markdown("""
-This tool implements the seven-variable Constitutional logistic model developed in the
+This tool implements the eight-variable Constitutional logistic model developed in the
 ELSA-Brasil Musculoskeletal Study. For a knee assessed **now**, it estimates the probability that
 radiographic knee osteoarthritis is **already present** (Kellgren-Lawrence grade 2 or higher in the
 tibiofemoral or patellofemoral joint).
@@ -57,8 +57,9 @@ model_name = st.radio(
     list(MODEL_FILES),
     horizontal=True,
     help=(
-        "Constitutional uses seven characteristics that do not depend on current symptoms. "
-        "Symptom-Augmented adds three self-reported knee symptom items, and so answers a "
+        "Constitutional uses eight characteristics that do not depend on current symptoms. "
+        "Symptom-Augmented was selected with three self-reported knee symptom items also "
+        "available: it keeps seven of the Constitutional variables and adds those items, and so answers a "
         "different question: how well structural disease is identified once the clinical "
         "presentation is already known."
     ),
@@ -66,7 +67,7 @@ model_name = st.radio(
 if model_name == "Symptom-Augmented":
     st.caption(
         "The Symptom-Augmented model requires symptom information for each knee. Its "
-        "discrimination was 0.820 against 0.809 for the Constitutional model."
+        "discrimination was 0.821 against 0.811 for the Constitutional model."
     )
 INTERCEPT, MODEL_FEATURES = MODELS[model_name]
 USES_SYMPTOMS = model_name == "Symptom-Augmented"
@@ -96,10 +97,18 @@ with col4:
     )
 
 race = st.selectbox(
-    "Race and skin colour (self-reported)",
+    "Race and skin color (self-reported)",
     ["White", "Brown/Mixed", "Black", "Asian", "Indigenous"],
     help="Self-reported using the Brazilian census (IBGE) categories.",
 )
+
+# Person-level variable that only the Constitutional model uses.
+squatting = False
+if not USES_SYMPTOMS:
+    squatting = st.checkbox(
+        "Squatting for 30 minutes or more in a single day?",
+        help="In the last 30 days, squatted for 30 minutes or more in a single day.",
+    )
 
 st.markdown("---")
 
@@ -283,6 +292,7 @@ st.markdown("---")
 # CÁLCULO
 # ==========================================
 def calculate_probability(age, bmi, whr, occupation, race, surgery, trauma,
+                          squatting=False,
                           frequent_symptoms=False, knee_disability=False, recent_pain=False):
     """Calculate the probability of KOA for a single knee using the saved preprocessing + LR params."""
     x = {
@@ -293,6 +303,7 @@ def calculate_probability(age, bmi, whr, occupation, race, surgery, trauma,
         "history_trauma": 1.0 if trauma else 0.0,
         "occupation_4": 1.0 if occupation == "Non-routine non-manual" else 0.0,
         "race_raw_3": 1.0 if race == "White" else 0.0,
+        "occ_squatting": 1.0 if squatting else 0.0,
         "frequent_symptoms": 1.0 if frequent_symptoms else 0.0,
         "knee_disability": 1.0 if knee_disability else 0.0,
         "recent_pain_7d": 1.0 if recent_pain else 0.0,
@@ -334,6 +345,7 @@ if st.button("Calculate Probability", type="primary"):
                 race=race,
                 surgery=knee_surgery,
                 trauma=knee_trauma,
+                squatting=squatting,
                 frequent_symptoms=st.session_state.get(f"frequent_symptoms_{knee}", False),
                 knee_disability=st.session_state.get(f"knee_disability_{knee}", False),
                 recent_pain=st.session_state.get(f"recent_pain_7d_{knee}", False),
